@@ -111,6 +111,7 @@ echo "[*] Ajustando perfis e sintaxe do terminal..."
 # Ativa a exibição do Neofetch sempre que o usuário abrir o terminal
 echo "neofetch" >> /root/.bashrc
 echo "neofetch" >> /home/joorgemdc/.bashrc
+wget -qO /etc/neofetch/jmdc_logo.txt "https://raw.githubusercontent.com/joorgemdc/1-Tools/refs/heads/main/jmdc_logo.txt"
 
 # Otimização do VIM (Identação e Cores)
 cat <<EOF > /root/.vimrc
