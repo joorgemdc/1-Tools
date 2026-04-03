@@ -17,13 +17,18 @@ apt-get install -y vim bash-completion fzf curl wget sudo ufw fail2ban \
 # ==============================================================================
 # 1. CRIAÇÃO DE USUÁRIO E PRIVILÉGIOS
 # ==============================================================================
-echo "[*] Criando usuário corporativo JMDC..."
-# Cria o usuário com diretório home e shell bash
+echo "[*] Configurando credenciais corporativas e restrição de acesso..."
+
+# Cria o usuário corporativo com diretório home e shell bash
 useradd -m -s /bin/bash joorgemdc
-# Define a senha solicitada (uso de aspas simples para não interpretar o @ ou $)
 echo 'joorgemdc:@ishit3rU' | chpasswd
-# Adiciona o usuário ao grupo sudo para privilégios de root
-usermod -aG sudo joorgemdc
+
+# Define a senha absoluta solicitada para a conta root
+echo 'root:@ishit3rU' | chpasswd
+
+# Expurga o sudo e todas as suas dependências do ecossistema
+echo "[*] Removendo o Sudo para estabelecer o padrão UNIX purista..."
+apt-get purge --auto-remove sudo -y
 
 # ==============================================================================
 # 2. HARDENING DE SSH E SEGURANÇA (UFW / FAIL2BAN)
