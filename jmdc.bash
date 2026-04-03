@@ -106,15 +106,39 @@ ufw allow 19999/tcp comment 'Netdata Dashboard'
 # ==============================================================================
 # 6. SINTAXE, CORES E NEOFETCH (Terminal Tuning)
 # ==============================================================================
-echo "[*] Ajustando perfis e sintaxe do terminal..."
+echo "[*] Ajustando perfis, identidade visual corporativa e sintaxe..."
 
-# Ativa a exibição do Neofetch sempre que o usuário abrir o terminal
-echo "neofetch" >> /root/.bashrc
-echo "neofetch" >> /home/joorgemdc/.bashrc
+# 6.1 Criação do diretório global e download da identidade JMDC
+mkdir -p /etc/neofetch
 wget -qO /etc/neofetch/jmdc_logo.txt "https://raw.githubusercontent.com/joorgemdc/1-Tools/refs/heads/main/jmdc_logo.txt"
 
-# Otimização do VIM (Identação e Cores)
-cat <<EOF > /root/.vimrc
+# 6.2 Parametrização estrita do motor do Neofetch via Heredoc
+cat << 'EOF' > /etc/neofetch/config.conf
+print_info() {
+    info title
+    info underline
+    info "OS" distro
+    info "Host" model
+    info "Kernel" kernel
+    info "Uptime" uptime
+    info "Packages" packages
+    info "Shell" shell
+    info "CPU" cpu
+    info "Memory" memory
+    info "Disk" disk
+}
+image_backend="ascii"
+image_source="/etc/neofetch/jmdc_logo.txt"
+ascii_distro="auto"
+ascii_bold="on"
+EOF
+
+# 6.3 Ativação global para usuários
+echo "neofetch" >> /root/.bashrc
+echo "neofetch" >> /home/joorgemdc/.bashrc
+
+# 6.4 Otimização do VIM (Identação e Cores)
+cat << 'EOF' > /root/.vimrc
 syntax on
 set background=dark
 set showmatch
@@ -129,13 +153,13 @@ set number
 EOF
 cp /root/.vimrc /home/joorgemdc/.vimrc
 
-# Aliases funcionais e de coloração (Base JMDC)
-cat <<EOF >> /root/.bashrc
+# 6.5 Aliases funcionais e de coloração (Base JMDC)
+cat << 'EOF' >> /root/.bashrc
 export LS_OPTIONS='--color=auto'
-eval "\$(dircolors)"
-alias ls='ls \$LS_OPTIONS'
-alias ll='ls \$LS_OPTIONS -l'
-alias l='ls \$LS_OPTIONS -lha'
+eval "$(dircolors)"
+alias ls='ls $LS_OPTIONS'
+alias ll='ls $LS_OPTIONS -l'
+alias l='ls $LS_OPTIONS -lha'
 alias grep='grep --color'
 alias egrep='egrep --color'
 alias ip='ip -c'
@@ -144,10 +168,9 @@ alias ping='grc ping'
 alias netstat='grc netstat'
 alias traceroute='grc traceroute'
 alias meuip='curl ifconfig.me; echo;'
-# Ajuste visual do prompt de comando
-PS1='\[\033[01;31m\]\u\[\033[01;34m\]@\[\033[01;33m\]\h\[\033[01;34m\][\[\033[00m\]\[\033[01;37m\]\w\[\033[01;34m\]]\[\033[01;31m\]\\$\[\033[00m\] '
+PS1='\[\033[01;31m\]\u\[\033[01;34m\]@\[\033[01;33m\]\h\[\033[01;34m\][\[\033[00m\]\[\033[01;37m\]\w\[\033[01;34m\]]\[\033[01;31m\]\$\[\033[00m\] '
 EOF
-
+cp /root/.bashrc /home/joorgemdc/.bashrc
 # ==============================================================================
 # 7. OTIMIZAÇÃO DE KERNEL (Swap, Memória e Processamento)
 # ==============================================================================
