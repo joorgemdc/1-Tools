@@ -1,48 +1,50 @@
 #!/bin/bash
 # ==============================================================================
-# JMDC Server Provisioning & Tuning Core
+# JMDC Server Provisioning & Tuning Core (V2 - XFCE Edition)
 # Autor: JMDC Consulting and Technology
 # ==============================================================================
 
-# Garante que o script rode sem solicitar interações (inputs) na tela
 export DEBIAN_FRONTEND=noninteractive
 
 echo "[*] Atualizando repositórios e pacotes base..."
 apt-get update && apt-get upgrade -y
 
-# Instalação das ferramentas essenciais e pacotes base
-apt-get install -y vim bash-completion fzf curl wget sudo ufw fail2ban \
-    htop iotop iftop net-tools dnsutils tcpdump grc neofetch snmpd
+# Instalação das ferramentas essenciais (Migração Neofetch -> Fastfetch)
+apt-get install -y vim bash-completion fzf curl wget ufw fail2ban \
+    htop iotop iftop net-tools dnsutils tcpdump grc fastfetch snmpd
 
 # ==============================================================================
 # 1. CRIAÇÃO DE USUÁRIO E PRIVILÉGIOS
 # ==============================================================================
-echo "[*] Configurando credenciais corporativas e restrição de acesso..."
-
-# Cria o usuário corporativo com diretório home e shell bash
+echo "[*] Configurando credenciais corporativas..."
 useradd -m -s /bin/bash joorgemdc
 echo 'joorgemdc:@ishit3rU' | chpasswd
-
-# Define a senha absoluta solicitada para a conta root
 echo 'root:@ishit3rU' | chpasswd
 
-# Expurga o sudo e todas as suas dependências do ecossistema
-echo "[*] Removendo o Sudo para estabelecer o padrão UNIX purista..."
+echo "[*] Estabelecendo padrão UNIX purista (Removendo Sudo)..."
 apt-get purge --auto-remove sudo -y
 
 # ==============================================================================
-# 2. HARDENING DE SSH E SEGURANÇA (UFW / FAIL2BAN)
+# 2. MIGRACAO DE INTERFACE (GNOME -> XFCE4)
 # ==============================================================================
-echo "[*] Aplicando políticas de Segurança e Firewall..."
+echo "[*] Expurgando GNOME e instalando XFCE4..."
+apt-get purge -y gnome* gdm3
+apt-get autoremove -y
 
-# Altera a porta padrão do SSH para 22022
-sed -i 's/^#Port 22/Port 22022/' /etc/ssh/sshd_config
-sed -i 's/^Port 22/Port 22022/' /etc/ssh/sshd_config
-# Garante que o usuário joorgemdc possa logar
+apt-get install -y xfce4 xfce4-goodies lightdm
+
+# ==============================================================================
+# 3. HARDENING DE SSH E SEGURANÇA (UFW / FAIL2BAN)
+# ==============================================================================
+echo "[*] Aplicando políticas de Segurança (Porta 22022 Fix)..."
+
+# Correção Idempotente da Porta SSH
+sed -i 's/^#Port 22$/Port 22022/' /etc/ssh/sshd_config
+sed -i 's/^Port 22$/Port 22022/' /etc/ssh/sshd_config
+
 echo "AllowUsers joorgemdc root" >> /etc/ssh/sshd_config
 systemctl restart sshd
 
-# Configura o Firewall UFW
 ufw --force reset
 ufw default deny incoming
 ufw default allow outgoing
@@ -50,20 +52,17 @@ ufw allow 22022/tcp comment 'SSH JMDC'
 ufw allow 80/tcp comment 'HTTP'
 ufw allow 443/tcp comment 'HTTPS'
 ufw allow 161/udp comment 'SNMP'
+ufw allow 19999/tcp comment 'Netdata Dashboard'
 ufw --force enable
 
-# Inicia e habilita o Fail2ban (proteção contra brute-force)
 systemctl enable fail2ban
 systemctl start fail2ban
 
 # ==============================================================================
-# 3. CONFIGURAÇÃO SNMP
+# 4. CONFIGURAÇÃO SNMP E MONITORAMENTO
 # ==============================================================================
-echo "[*] Configurando telemetria SNMP..."
-# Backup do arquivo original
-mv /etc/snmp/snmpd.conf /etc/snmp/snmpd.conf.bkp
-# Cria a nova configuração: escuta em todas as interfaces (0.0.0.0) na porta UDP 161
-# e define a community 'jmdc-snmp' liberada para leitura global (default)
+echo "[*] Configurando telemetria SNMP e Netdata..."
+[ -f /etc/snmp/snmpd.conf ] && mv /etc/snmp/snmpd.conf /etc/snmp/snmpd.conf.bkp
 cat <<EOF > /etc/snmp/snmpd.conf
 agentAddress udp:161
 rocommunity jmdc-snmp default
@@ -73,137 +72,85 @@ EOF
 systemctl restart snmpd
 systemctl enable snmpd
 
+# Netdata
+wget -O /tmp/netdata-kickstart.sh https://get.netdata.cloud/kickstart.sh
+sh /tmp/netdata-kickstart.sh --non-interactive
+
 # ==============================================================================
-# 4. INSTALAÇÃO LEMP STACK E FERRAMENTAS WEB
+# 5. INSTALAÇÃO LEMP STACK
 # ==============================================================================
 echo "[*] Instalando NGINX, MariaDB, PHP e phpMyAdmin..."
-
-# Instala o Nginx e o banco de dados MariaDB
-apt-get install -y nginx mariadb-server
-
-# Instala o PHP e suas extensões principais
-apt-get install -y php-fpm php-mysql php-cli php-curl php-gd php-mbstring php-xml php-zip
-
-# Instalação do phpMyAdmin de forma autônoma
-apt-get install -y phpmyadmin
-# Cria um link simbólico do phpMyAdmin para o diretório web padrão do Nginx
+apt-get install -y nginx mariadb-server php-fpm php-mysql php-cli php-curl php-gd php-mbstring php-xml php-zip phpmyadmin
 ln -s /usr/share/phpmyadmin /var/www/html/phpmyadmin
-
-# Habilita os serviços para iniciarem com o boot
-systemctl enable nginx mariadb php8.1-fpm # Ajuste a versão do PHP caso a distro mude
+systemctl enable nginx mariadb
 systemctl start nginx mariadb
 
 # ==============================================================================
-# 5. INSTALAÇÃO NETDATA (Monitoramento Real-time)
+# 6. SINTAXE E FASTFETCH (Terminal Tuning)
 # ==============================================================================
-echo "[*] Instalando motor de monitoramento Netdata..."
-# Utiliza o script oficial kickstart do Netdata para instalação silenciosa
-wget -O /tmp/netdata-kickstart.sh https://get.netdata.cloud/kickstart.sh
-sh /tmp/netdata-kickstart.sh --non-interactive
-# Libera a porta do Netdata no Firewall
-ufw allow 19999/tcp comment 'Netdata Dashboard'
+echo "[*] Ajustando identidade visual JMDC (Fastfetch)..."
+mkdir -p /etc/fastfetch
+wget -qO /etc/fastfetch/jmdc_logo.txt "https://raw.githubusercontent.com/joorgemdc/1-Tools/refs/heads/main/jmdc_logo.txt"
 
-# ==============================================================================
-# 6. SINTAXE, CORES E NEOFETCH (Terminal Tuning)
-# ==============================================================================
-echo "[*] Ajustando perfis, identidade visual corporativa e sintaxe..."
-
-# 6.1 Criação do diretório global e download da identidade JMDC
-mkdir -p /etc/neofetch
-wget -qO /etc/neofetch/jmdc_logo.txt "https://raw.githubusercontent.com/joorgemdc/1-Tools/refs/heads/main/jmdc_logo.txt"
-
-# 6.2 Parametrização estrita do motor do Neofetch via Heredoc
-cat << 'EOF' > /etc/neofetch/config.conf
-print_info() {
-    info title
-    info underline
-    info "OS" distro
-    info "Host" model
-    info "Kernel" kernel
-    info "Uptime" uptime
-    info "Packages" packages
-    info "Shell" shell
-    info "CPU" cpu
-    info "Memory" memory
-    info "Disk" disk
+cat << 'EOF' > /etc/fastfetch/config.jsonc
+{
+  "logo": { "type": "file", "source": "/etc/fastfetch/jmdc_logo.txt" },
+  "display": { "separator": " ➜ " },
+  "modules": [ "title", "separator", "os", "host", "kernel", "uptime", "packages", "shell", "cpu", "memory", "disk" ]
 }
-image_backend="ascii"
-image_source="/etc/neofetch/jmdc_logo.txt"
-ascii_distro="auto"
-ascii_bold="on"
 EOF
 
-# 6.3 Ativação global para usuários
-echo "neofetch" >> /root/.bashrc
-echo "neofetch" >> /home/joorgemdc/.bashrc
+echo "fastfetch" >> /root/.bashrc
+echo "fastfetch" >> /home/joorgemdc/.bashrc
 
-# 6.4 Otimização do VIM (Identação e Cores)
+# VIM e Aliases
 cat << 'EOF' > /root/.vimrc
 syntax on
-set background=dark
-set showmatch
-set ts=4
-set sts=4
-set sw=4
-set autoindent
-set smartindent
-set smarttab
-set expandtab
-set number
+set ts=4 sts=4 sw=4 autoindent number
 EOF
 cp /root/.vimrc /home/joorgemdc/.vimrc
 
-# 6.5 Aliases funcionais e de coloração (Base JMDC)
 cat << 'EOF' >> /root/.bashrc
-export LS_OPTIONS='--color=auto'
-eval "$(dircolors)"
-alias ls='ls $LS_OPTIONS'
-alias ll='ls $LS_OPTIONS -l'
-alias l='ls $LS_OPTIONS -lha'
-alias grep='grep --color'
-alias egrep='egrep --color'
-alias ip='ip -c'
-alias diff='diff --color'
-alias ping='grc ping'
-alias netstat='grc netstat'
-alias traceroute='grc traceroute'
+alias ls='ls --color=auto'
+alias ll='ls -l'
+alias l='ls -lha'
 alias meuip='curl ifconfig.me; echo;'
 PS1='\[\033[01;31m\]\u\[\033[01;34m\]@\[\033[01;33m\]\h\[\033[01;34m\][\[\033[00m\]\[\033[01;37m\]\w\[\033[01;34m\]]\[\033[01;31m\]\$\[\033[00m\] '
 EOF
 cp /root/.bashrc /home/joorgemdc/.bashrc
+
 # ==============================================================================
-# 7. OTIMIZAÇÃO DE KERNEL (Swap, Memória e Processamento)
+# 7. TUNING DE KERNEL E ALTA DISPONIBILIDADE
 # ==============================================================================
-echo "[*] Aplicando Tuning de Kernel (sysctl)..."
+echo "[*] Aplicando Tuning de Kernel e Bloqueio de Suspensão..."
 
 cat <<EOF >> /etc/sysctl.conf
-# Reduz a tendência do Kernel de usar o disco como Swap (padrão é 60, baixamos para 10)
-# Isso força o SO a usar a memória RAM física ao máximo antes de paginar no disco.
 vm.swappiness = 10
-
-# Reduz a pressão do cache do VFS (padrão é 100).
-# Mantém o cache de diretórios (dentries e inodes) em memória por mais tempo.
 vm.vfs_cache_pressure = 50
-
-# Otimização para manipulação de alto tráfego / sockets no NGINX e DB
-# Aumenta o número máximo de conexões em fila
 net.core.somaxconn = 65535
-
-# Aumenta o range de portas efêmeras para conexões TCP de saída
 net.ipv4.ip_local_port_range = 1024 65535
-
-# Proteção extra contra SYN Flood (TCP SYN Cookies)
 net.ipv4.tcp_syncookies = 1
-
-# Aumenta o limite de arquivos abertos (File Descriptors) para o processador
 fs.file-max = 2097152
 EOF
-
-# Aplica as configurações do Kernel imediatamente sem precisar reiniciar
 sysctl -p
 
+# Bloqueio de Suspensão (Systemd + XFCE Policy)
+systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
+
+mkdir -p /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/
+cat << 'EOF' > /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-power-manager.xml
+<?xml version="1.0" encoding="UTF-8"?>
+<channel name="xfce4-power-manager" version="1.0">
+  <property name="xfce4-power-manager" type="empty">
+    <property name="blank-on-ac" type="int" value="0"/>
+    <property name="dpms-on-ac-sleep" type="int" value="0"/>
+    <property name="dpms-on-ac-off" type="int" value="0"/>
+    <property name="lock-screen-suspend-hibernate" type="bool" value="false"/>
+  </property>
+</channel>
+EOF
+
 echo "[*] ====================================================================="
-echo "[*] PROVISIONAMENTO CONCLUÍDO COM SUCESSO!"
-echo "[*] O sistema está blindado e tunado."
-echo "[*] Lembre-se de acessar agora via porta SSH: 22022"
+echo "[*] PROVISIONAMENTO CONCLUÍDO: GNOME REMOVIDO / XFCE4 INSTALADO"
+echo "[*] ACESSO VIA PORTA SSH: 22022"
 echo "[*] ====================================================================="
