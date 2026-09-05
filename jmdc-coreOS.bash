@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# JMDC CoreOS - Provisionamento Base (Minimalista & Seguro)
+# JMDC CoreOS - Provisionamento Base (Minimalista, Seguro & Tático)
 # Autor: JMDC Consulting and Technology
 # ==============================================================================
 
@@ -9,24 +9,30 @@ export DEBIAN_FRONTEND=noninteractive
 echo "[*] 1. Sincronizando Repositórios e Atualizando Kernel..."
 apt-get update && apt-get dist-upgrade -y
 
-echo "[*] 2. Instalando Core-Packages e Expurgando Sudo..."
-# Instalação de utilitários de alta performance e diagnóstico
-apt-get install -y vim bash-completion fzf curl wget ufw fail2ban htop net-tools dnsutils tcpdump grc fastfetch
+echo "[*] 2. Instalando Core-Packages, Arsenal Tático e Expurgando Sudo..."
+# Instalação expandida: tmux, ncdu, jq e bat (batcat) para engenharia avançada
+apt-get install -y vim bash-completion fzf curl wget ufw fail2ban htop net-tools \
+    dnsutils tcpdump grc fastfetch tmux ncdu jq bat
 
 # Remoção absoluta do Sudo para manter o padrão UNIX purista
 apt-get purge --auto-remove sudo -y
 
-echo "[*] 3. Hardening de SSH (Porta 22022) e Sessão Ilimitada..."
-# Correção idempotente da porta SSH (evita concatenações)
-sed -i 's/^#Port 22$/Port 22022/' /etc/ssh/sshd_config
-sed -i 's/^Port 22$/Port 22022/' /etc/ssh/sshd_config
+echo "[*] 3. Hardening de SSH (Porta 22022) e Desativação do Systemd Socket..."
+# Neutraliza o socket preemptivo do Debian 13 para assumir controle direto
+systemctl stop ssh.socket 2>/dev/null
+systemctl disable ssh.socket 2>/dev/null
+systemctl mask ssh.socket 2>/dev/null
+systemctl enable ssh.service
 
-# Otimização para manter a conexão ativa indefinidamente
-sed -i '/^ClientAliveInterval/d' /etc/ssh/sshd_config
-sed -i '/^ClientAliveCountMax/d' /etc/ssh/sshd_config
-echo "ClientAliveInterval 0" >> /etc/ssh/sshd_config
-echo "ClientAliveCountMax 0" >> /etc/ssh/sshd_config
-systemctl restart sshd
+# Injeção modular declarativa (ignora o arquivo sshd_config nativo)
+mkdir -p /etc/ssh/sshd_config.d/
+cat << 'EOF' > /etc/ssh/sshd_config.d/99-jmdc-ssh.conf
+Port 22022
+ClientAliveInterval 0
+ClientAliveCountMax 0
+EOF
+
+systemctl restart ssh
 
 echo "[*] 4. Orquestrando Firewall (UFW) e Fail2ban..."
 ufw --force reset
@@ -61,13 +67,14 @@ cat << 'EOF' > /etc/fastfetch/config.jsonc
 }
 EOF
 
-echo "[*] 6. Calibrando Shell Global (Cores e Aliases)..."
-# Injeção em profile.d para garantir que novos usuários herdem a configuração
+echo "[*] 6. Calibrando Shell Global, Cores e Aliases Táticos..."
+# Injeção em profile.d para garantir governança em novos usuários
 cat << 'EOF' > /etc/profile.d/jmdc_coreos.sh
 alias ls='ls --color=auto'
 alias ll='ls -l --color=auto'
 alias l='ls -lha --color=auto'
 alias meuip='curl ifconfig.me; echo;'
+alias cat='batcat --paging=never' # Substitui o cat tradicional pelo leitor com syntax highlighting
 export PS1='\[\033[01;31m\]\u\[\033[01;34m\]@\[\033[01;33m\]\h\[\033[01;34m\][\[\033[00m\]\[\033[01;37m\]\w\[\033[01;34m\]]\[\033[01;31m\]\$\[\033[00m\] '
 fastfetch
 EOF
