@@ -1,5 +1,5 @@
-JMDC Trinity Bell 2.1.0 — automação de sinos para igrejas (Windows 10/11, 64 bits)
-SHA-256: f02453ddc8446ab5d562fa257067463f8647b65dc4636767c64c3fe9a46a2d4e
+JMDC Trinity Bell 2.1.1 — automação de sinos para igrejas (Windows 10/11, 64 bits)
+SHA-256: d29cd4b902cfe65f0865ac97f13e62e16f4cc84bf3a80b45f608c575e1a68f38
 
 Funciona somente com licença validada no servidor da JMDC (ativação online na primeira vez).
 Teste grátis de 14 dias e demonstração: https://trinity.jmdc.com.br
